@@ -71,10 +71,74 @@ Useful environment variables:
 ```bash
 PORT=8080 sh scripts/deploy.sh
 SKIP_TESTS=1 sh scripts/deploy.sh
-NO_START=1 sh scripts/deploy.sh
+NO_RESTART=1 sh scripts/deploy.sh
 RECREATE_VENV=1 sh scripts/deploy.sh
 UPGRADE_PIP=1 sh scripts/deploy.sh
+RUN_GIT_PULL=1 sh scripts/deploy.sh
 ```
+
+On Linux servers, `scripts/deploy.sh` assumes the long-running app process is managed by `systemd`. It prepares the virtual environment, installs dependencies, optionally runs tests, initializes SQLite, restarts the configured service, runs a health check, and exits.
+
+## ECS systemd deployment
+
+Clone the project on the ECS instance:
+
+```bash
+cd /opt
+git clone <repo-url> personal-AI-searcher
+cd /opt/personal-AI-searcher
+```
+
+Install the `systemd` service:
+
+```bash
+chmod +x scripts/install_systemd_service.sh scripts/deploy.sh
+./scripts/install_systemd_service.sh
+```
+
+Run deployment:
+
+```bash
+./scripts/deploy.sh
+```
+
+Skip tests if needed:
+
+```bash
+SKIP_TESTS=1 ./scripts/deploy.sh
+```
+
+Pull the latest code and deploy:
+
+```bash
+RUN_GIT_PULL=1 ./scripts/deploy.sh
+```
+
+Check service status:
+
+```bash
+systemctl status personal-ai-searcher
+```
+
+View service logs:
+
+```bash
+journalctl -u personal-ai-searcher -f
+```
+
+Run a health check:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Notes:
+
+- `deploy.sh` no longer stays attached to the foreground `uvicorn` process.
+- `uvicorn` is managed by `systemd`.
+- The default SQLite database is `data/searcher.db`.
+- The default service listens only on `127.0.0.1`.
+- For public access, put a reverse proxy such as Nginx in front of the service later. Directly exposing `0.0.0.0` is not recommended.
 
 ## API Examples
 
