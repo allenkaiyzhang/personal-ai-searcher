@@ -203,6 +203,56 @@ Notes:
 - The default service listens only on `127.0.0.1`.
 - For public access, put a reverse proxy such as Nginx in front of the service later. Directly exposing `0.0.0.0` is not recommended.
 
+## Public access with security group whitelist and API key
+
+If the caller ECS and service ECS are not in the same VPC, access may need to go through the public network. Use two layers of protection:
+
+1. Configure `uvicorn` to listen on `0.0.0.0:8000` through the systemd service settings only when public access is required.
+2. In the Alibaba Cloud security group, allow only the caller ECS public IP, for example `<CALLER_PUBLIC_IP>/32`, to access TCP port `8000`.
+3. Enable application-level API key protection with `API_KEY`.
+
+Generate a random API key:
+
+```bash
+openssl rand -hex 32
+```
+
+Project root `.env` example:
+
+```bash
+API_KEY=your-random-secret
+DEEPSEEK_API_KEY=
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-flash
+ENABLE_QUERY_REWRITE=0
+```
+
+After changing `.env`, restart the systemd service:
+
+```bash
+sudo systemctl restart personal-ai-searcher
+```
+
+Public `/search` request example:
+
+```bash
+curl -sS -X POST http://<SERVICE_PUBLIC_IP>:8000/search \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <API_KEY>" \
+  -d '{
+    "query": "VAT Chinese translation",
+    "max_results": 3,
+    "market": "en-US"
+  }'
+```
+
+Notes:
+
+- `GET /health` does not require `API_KEY`, but it is still restricted by the security group.
+- `POST /search`, `POST /research`, `GET /topics`, `POST /topics`, and `GET /timeline/{topic_id}` require `X-API-Key` when `API_KEY` is set.
+- Empty `API_KEY` disables application-level API key protection for local development.
+- Do not hard-code `API_KEY` in the systemd service file. The service reads `.env` through `EnvironmentFile`.
+
 ## API Examples
 
 ```bash

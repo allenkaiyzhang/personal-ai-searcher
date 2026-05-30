@@ -2,6 +2,7 @@ import httpx
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
+import app.config as config
 from app.db.init_db import init_db
 from app.db.models import Evidence, ResearchRun, TimelineEvent
 from app.db.session import SessionLocal
@@ -9,6 +10,10 @@ from app.main import app
 from app.providers.base import SearchResult
 from app.providers.bing_html import BingHtmlSearchProvider
 from app.schemas import RewrittenQuery
+
+
+def setup_function() -> None:
+    config.API_KEY = ""
 
 
 def _table_counts() -> dict[str, int]:

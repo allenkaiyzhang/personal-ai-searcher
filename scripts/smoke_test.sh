@@ -18,26 +18,58 @@ if [ "${DEEPSEEK_API_KEY:-}" ]; then
 else
   echo "==> DEEPSEEK_API_KEY is unset"
 fi
+if [ "${API_KEY:-}" ]; then
+  echo "==> API_KEY is set"
+else
+  echo "==> API_KEY is not set"
+fi
 echo "==> ENABLE_QUERY_REWRITE=${ENABLE_QUERY_REWRITE:-0}"
 
 BASE_URL="${BASE_URL:-http://127.0.0.1:8000}"
 
+api_post() {
+  path="$1"
+  body="$2"
+  if [ "${API_KEY:-}" ]; then
+    curl -fsS \
+      -H "Content-Type: application/json" \
+      -H "X-API-Key: $API_KEY" \
+      -d "$body" \
+      "$BASE_URL$path"
+  else
+    curl -fsS \
+      -H "Content-Type: application/json" \
+      -d "$body" \
+      "$BASE_URL$path"
+  fi
+}
+
 echo "==> Checking health endpoint"
 curl -fsS "$BASE_URL/health" >/dev/null
 
+if [ "${API_KEY:-}" ]; then
+  echo "==> Checking API key protection rejects missing key"
+  STATUS_CODE="$(curl -sS -o /dev/null -w '%{http_code}' \
+    -H "Content-Type: application/json" \
+    -d '{"query":"OpenAI API web search","max_results":1,"market":"en-US","rewrite_query":false}' \
+    "$BASE_URL/search")"
+  if [ "$STATUS_CODE" != "401" ]; then
+    echo "==> Expected /search without X-API-Key to return 401, got $STATUS_CODE" >&2
+    exit 1
+  fi
+fi
+
 echo "==> Checking search endpoint"
-SEARCH_RESPONSE="$(curl -fsS \
-  -H "Content-Type: application/json" \
-  -d '{"query":"OpenAI API web search","max_results":5,"market":"en-US","rewrite_query":false}' \
-  "$BASE_URL/search")"
+SEARCH_RESPONSE="$(api_post "/search" '{"query":"OpenAI API web search","max_results":5,"market":"en-US","rewrite_query":false}')"
 
 printf '%s' "$SEARCH_RESPONSE" | grep '"results"' >/dev/null
 
+if [ "${API_KEY:-}" ]; then
+  echo "==> Checking API key protection accepts configured key"
+fi
+
 echo "==> Checking search URL normalization"
-VAT_SEARCH_RESPONSE="$(curl -fsS \
-  -H "Content-Type: application/json" \
-  -d '{"query":"VAT Chinese translation","max_results":5,"market":"en-US"}' \
-  "$BASE_URL/search")"
+VAT_SEARCH_RESPONSE="$(api_post "/search" '{"query":"VAT Chinese translation","max_results":5,"market":"en-US"}')"
 
 VAT_FIRST_URL="$(printf '%s' "$VAT_SEARCH_RESPONSE" | python3 -c 'import json,sys; data=json.load(sys.stdin); results=data.get("results", []); print(results[0].get("url", "") if results else "")')"
 
@@ -52,10 +84,7 @@ fi
 
 if [ "${DEEPSEEK_API_KEY:-}" ] && [ "${ENABLE_QUERY_REWRITE:-0}" = "1" ]; then
   echo "==> Checking search endpoint with query rewrite"
-  if REWRITE_RESPONSE="$(curl -fsS \
-    -H "Content-Type: application/json" \
-    -d '{"query":"How to speak VAT in CHinese","max_results":5,"market":"en-US","rewrite_query":true}' \
-    "$BASE_URL/search")"; then
+  if REWRITE_RESPONSE="$(api_post "/search" '{"query":"How to speak VAT in CHinese","max_results":5,"market":"en-US","rewrite_query":true}')"; then
     printf '%s' "$REWRITE_RESPONSE" | grep '"rewritten_queries"' >/dev/null
     echo "==> Query rewrite smoke check passed"
   else

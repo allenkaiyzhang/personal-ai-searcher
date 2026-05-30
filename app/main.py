@@ -23,6 +23,7 @@ from app.schemas import (
     TopicCreate,
     TopicRead,
 )
+from app.security import require_api_key
 from app.utils.normalize import normalize_url
 
 
@@ -40,22 +41,22 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/topics", response_model=TopicRead)
+@app.post("/topics", response_model=TopicRead, dependencies=[Depends(require_api_key)])
 def create_topic(payload: TopicCreate, db: Session = Depends(get_db)) -> TopicRead:
     return Repository(db).create_topic(payload.name, payload.aliases, payload.description)
 
 
-@app.get("/topics", response_model=list[TopicRead])
+@app.get("/topics", response_model=list[TopicRead], dependencies=[Depends(require_api_key)])
 def list_topics(db: Session = Depends(get_db)) -> list[TopicRead]:
     return Repository(db).list_topics()
 
 
-@app.get("/timeline/{topic_id}", response_model=list[TimelineEventRead])
+@app.get("/timeline/{topic_id}", response_model=list[TimelineEventRead], dependencies=[Depends(require_api_key)])
 def get_timeline(topic_id: int, db: Session = Depends(get_db)) -> list[TimelineEventRead]:
     return Repository(db).recent_timeline(topic_id, limit=100)
 
 
-@app.post("/search", response_model=SearchResponse)
+@app.post("/search", response_model=SearchResponse, dependencies=[Depends(require_api_key)])
 async def search(payload: SearchRequest) -> SearchResponse:
     provider = BingHtmlSearchProvider()
     rewritten_queries = (
@@ -111,7 +112,7 @@ async def _run_search_queries(
     return results
 
 
-@app.post("/research", response_model=ResearchResponse)
+@app.post("/research", response_model=ResearchResponse, dependencies=[Depends(require_api_key)])
 async def research(payload: ResearchRequest, db: Session = Depends(get_db)) -> ResearchResponse:
     pipeline = ResearchPipeline(Repository(db), BingHtmlSearchProvider())
     return await pipeline.run(payload)
