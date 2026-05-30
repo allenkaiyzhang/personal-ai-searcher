@@ -8,6 +8,7 @@ WorkingDirectory=/opt/personal-AI-searcher
 ExecStart=/opt/personal-AI-searcher/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=5
+EnvironmentFile=-/opt/personal-AI-searcher/.env
 Environment=DATABASE_URL=sqlite:///./data/searcher.db
 Environment=PYTHONUNBUFFERED=1
 

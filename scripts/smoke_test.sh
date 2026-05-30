@@ -1,6 +1,25 @@
 #!/usr/bin/env sh
 set -eu
 
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  echo "==> Loading environment from $PROJECT_ROOT/.env"
+  set -a
+  . "$PROJECT_ROOT/.env"
+  set +a
+else
+  echo "==> No .env file found at $PROJECT_ROOT/.env"
+fi
+
+if [ "${DEEPSEEK_API_KEY:-}" ]; then
+  echo "==> DEEPSEEK_API_KEY is set"
+else
+  echo "==> DEEPSEEK_API_KEY is unset"
+fi
+echo "==> ENABLE_QUERY_REWRITE=${ENABLE_QUERY_REWRITE:-0}"
+
 BASE_URL="${BASE_URL:-http://127.0.0.1:8000}"
 
 echo "==> Checking health endpoint"

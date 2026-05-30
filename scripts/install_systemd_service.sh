@@ -34,6 +34,7 @@ WorkingDirectory=$PROJECT_ROOT
 ExecStart=$VENV_PYTHON -m uvicorn app.main:app --host $HOST_ADDRESS --port $PORT
 Restart=always
 RestartSec=5
+EnvironmentFile=-$PROJECT_ROOT/.env
 Environment=DATABASE_URL=sqlite:///./data/searcher.db
 Environment=PYTHONUNBUFFERED=1
 

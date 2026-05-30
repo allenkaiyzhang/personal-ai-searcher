@@ -39,16 +39,21 @@ DEEPSEEK_MODEL=deepseek-v4-flash
 ENABLE_QUERY_REWRITE=0
 ```
 
-Enable it for a shell session:
+Project root `.env` example:
 
 ```bash
-export DEEPSEEK_API_KEY="your-api-key"
-export ENABLE_QUERY_REWRITE=1
+DATABASE_URL=sqlite:///./data/searcher.db
+BING_SEARCH_URL=https://www.bing.com/search
+DEEPSEEK_API_KEY=your-api-key
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-flash
+ENABLE_QUERY_REWRITE=1
 ```
 
-For `systemd` deployments, set these values through a service override or service environment, then restart the service:
+For `systemd` deployments, the service reads the project root `.env` file automatically, for example `/opt/personal-AI-searcher/.env`. After changing `.env`, reload systemd and restart the service:
 
 ```bash
+sudo systemctl daemon-reload
 sudo systemctl restart personal-ai-searcher
 ```
 
@@ -175,6 +180,19 @@ Run a health check:
 
 ```bash
 curl http://127.0.0.1:8000/health
+```
+
+Verify query rewrite after configuring `.env` and restarting the service:
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query":"How to speak VAT in CHinese",
+    "max_results":5,
+    "market":"en-US",
+    "rewrite_query":true
+  }' | python3 -m json.tool
 ```
 
 Notes:
