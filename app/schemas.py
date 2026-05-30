@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TopicCreate(BaseModel):
@@ -77,3 +77,30 @@ class ResearchResponse(BaseModel):
     timeline_updates: list[TimelineEventRead]
     new_evidence: list[EvidenceRead]
     confidence: str
+
+
+class SearchRequest(BaseModel):
+    query: str = Field(min_length=1)
+    max_results: int = Field(default=5, ge=1, le=20)
+    market: str | None = "en-US"
+
+    @field_validator("query")
+    @classmethod
+    def query_must_not_be_blank(cls, value: str) -> str:
+        query = value.strip()
+        if not query:
+            raise ValueError("query must not be blank")
+        return query
+
+
+class SearchResultRead(BaseModel):
+    title: str
+    url: str
+    snippet: str | None
+    rank: int
+    source: str = "bing"
+
+
+class SearchResponse(BaseModel):
+    query: str
+    results: list[SearchResultRead]

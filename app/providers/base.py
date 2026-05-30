@@ -9,5 +9,5 @@ class SearchResult:
 
 
 class SearchProvider:
-    async def search(self, query: str, max_results: int) -> list[SearchResult]:
+    async def search(self, query: str, max_results: int, market: str | None = None) -> list[SearchResult]:
         raise NotImplementedError

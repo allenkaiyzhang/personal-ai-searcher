@@ -18,9 +18,12 @@ class BingHtmlSearchProvider(SearchProvider):
     def __init__(self, search_url: str | None = None) -> None:
         self.search_url = search_url or get_settings().bing_search_url
 
-    async def search(self, query: str, max_results: int) -> list[SearchResult]:
+    async def search(self, query: str, max_results: int, market: str | None = None) -> list[SearchResult]:
+        params: dict[str, str | int] = {"q": query, "count": max_results}
+        if market:
+            params["mkt"] = market
         async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": self.user_agent}) as client:
-            response = await client.get(self.search_url, params={"q": query, "count": max_results})
+            response = await client.get(self.search_url, params=params)
             response.raise_for_status()
         return self.parse_results(response.text, max_results=max_results)
 

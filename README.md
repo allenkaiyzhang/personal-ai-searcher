@@ -20,6 +20,12 @@ The service searches the web, stores evidence, maintains topic timelines, keeps 
 
 The MVP intentionally does not use an LLM. Reports are rule-based summaries and should not be considered factual conclusions.
 
+## Search vs Research
+
+`POST /search` is the raw search endpoint. It calls the Bing HTML search provider and returns structured search results. It does not fetch page bodies, extract evidence, update timelines, create insights, or write to the database. Use `/search` for temporary searches and for testing raw search behavior.
+
+`POST /research` is the research-memory pipeline. It matches a topic, reuses prior memory, searches, fetches pages, extracts evidence, updates timeline events, may update insights, and records the research run. Use `/research` when results should become durable evidence and timeline history.
+
 ## Install
 
 ```bash
@@ -144,6 +150,14 @@ Notes:
 
 ```bash
 curl http://127.0.0.1:8000/health
+```
+
+Raw search:
+
+```bash
+curl -X POST http://127.0.0.1:8000/search \
+  -H "Content-Type: application/json" \
+  -d "{\"query\":\"OpenAI API web search\",\"max_results\":5,\"market\":\"en-US\"}"
 ```
 
 ```bash
