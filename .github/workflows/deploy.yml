@@ -75,7 +75,12 @@ jobs:
             set -e
             whoami
             cd /opt/personal-ai-searcher
-            git pull --ff-only
+            if ! git pull --ff-only; then
+              echo "git pull failed. Discarding local tracked changes and retrying."
+              git status --short
+              git restore --source=HEAD --staged --worktree .
+              git pull --ff-only
+            fi
             chmod +x scripts/deploy.sh scripts/smoke_test.sh scripts/tail_logs.sh
             scripts/deploy.sh
             scripts/smoke_test.sh
