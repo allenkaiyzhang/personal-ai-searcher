@@ -1,0 +1,35 @@
+service:
+  name: personal-ai-searcher
+  runtime_user: deploy
+
+app:
+  entrypoint: app.main:app
+
+server:
+  target: vps
+  project_root: /opt/personal-ai-searcher
+  installed_systemd_path: /etc/systemd/system/personal-ai-searcher.service
+
+network:
+  host: 127.0.0.1
+  port: 8020
+  health_url: http://127.0.0.1:8020/health
+
+logging:
+  level: INFO
+
+database:
+  url: sqlite:///./data/searcher.db
+
+search:
+  bing_search_url: https://www.bing.com/search
+  google_cse_id: replace-me-if-needed
+
+query_rewrite:
+  enabled: false
+  deepseek_base_url: https://api.deepseek.com
+  deepseek_model: deepseek-v4-flash
+
+github_actions:
+  secrets_prefix: VPS
+  deploy_concurrency_group: personal-ai-searcher-vps-deploy

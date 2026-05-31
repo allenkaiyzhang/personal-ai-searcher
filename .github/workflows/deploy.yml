@@ -19,8 +19,6 @@ jobs:
       API_KEY: ""
       API_TOKEN: ""
       DEEPSEEK_API_KEY: ""
-      ENABLE_QUERY_REWRITE: "0"
-      DATABASE_URL: sqlite:///./data/test.db
 
     steps:
       - name: Check out repository

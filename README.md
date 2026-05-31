@@ -23,6 +23,7 @@ The service is designed to run on a VPS with `venv + systemd`. The default VPS p
 
 ```text
 app/                         FastAPI app and business logic
+config/registry.yml          non-sensitive configuration registry
 tests/                       pytest test suite
 scripts/deploy.sh            VPS deployment script
 scripts/smoke_test.sh        VPS health smoke test
@@ -34,9 +35,38 @@ systemd/personal-ai-searcher.service
 requirements.txt             Python dependencies
 ```
 
-## Configuration
+## Configuration Registry
 
-Create a local or server `.env` from the template:
+Non-sensitive configuration lives in `config/registry.yml`. Treat this file as the registry for repeated deployment, runtime, and provider defaults.
+
+Examples stored in the registry:
+
+```yaml
+service:
+  name: personal-ai-searcher
+
+server:
+  project_root: /opt/personal-ai-searcher
+
+network:
+  host: 127.0.0.1
+  port: 8020
+  health_url: http://127.0.0.1:8020/health
+
+database:
+  url: sqlite:///./data/searcher.db
+
+query_rewrite:
+  enabled: false
+  deepseek_base_url: https://api.deepseek.com
+  deepseek_model: deepseek-v4-flash
+```
+
+Add future non-sensitive settings to `config/registry.yml` first. Do not duplicate them into `.env`.
+
+## Secrets
+
+`.env` is reserved for sensitive values only. Create a local or server `.env` from the template:
 
 ```bash
 cp .env.example .env
@@ -45,19 +75,10 @@ cp .env.example .env
 Minimum server example:
 
 ```bash
-HOST=127.0.0.1
-PORT=8020
-LOG_LEVEL=INFO
-API_TOKEN=replace-with-strong-token
 API_KEY=replace-with-strong-token
-DATABASE_URL=sqlite:///./data/searcher.db
-BING_SEARCH_URL=https://www.bing.com/search
+API_TOKEN=replace-with-strong-token
 GOOGLE_CSE_API_KEY=replace-me-if-needed
-GOOGLE_CSE_ID=replace-me-if-needed
 DEEPSEEK_API_KEY=replace-me-if-needed
-DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_MODEL=deepseek-v4-flash
-ENABLE_QUERY_REWRITE=0
 ```
 
 Do not commit real secrets.
