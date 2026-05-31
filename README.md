@@ -87,7 +87,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8020 --reload
 Health check:
 
 ```bash
-curl http://127.0.0.1:8020/health
+curl -fsS http://127.0.0.1:8020/health
 ```
 
 Expected response:
@@ -252,7 +252,7 @@ HEALTH_URL=http://127.0.0.1:8020/health scripts/smoke_test.sh
 Health:
 
 ```bash
-curl http://127.0.0.1:8020/health
+curl -fsS http://127.0.0.1:8020/health
 ```
 
 Raw search:

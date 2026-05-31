@@ -7,6 +7,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 VENV_DIR="$PROJECT_ROOT/.venv"
 LOG_FILE="$PROJECT_ROOT/deploy.log"
 SERVICE_FILE="$PROJECT_ROOT/systemd/${SERVICE_NAME}.service"
+HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8020/health}"
 
 mkdir -p "$PROJECT_ROOT/data" "$PROJECT_ROOT/logs"
 touch "$LOG_FILE"
@@ -56,6 +57,6 @@ sleep 2
 
 sudo systemctl --no-pager --full status "$SERVICE_NAME" || true
 
-"$SCRIPT_DIR/smoke_test.sh"
+HEALTH_URL="$HEALTH_URL" "$SCRIPT_DIR/smoke_test.sh"
 
 echo "==> Deployment finished"
