@@ -15,7 +15,7 @@ $PythonPath = Join-Path $VenvPath "Scripts\python.exe"
 
 Set-Location $ProjectRoot
 
-Write-Host "==> Deploying personal-AI-searcher from $ProjectRoot"
+Write-Host "==> Deploying personal-ai-searcher from $ProjectRoot"
 
 if ($RecreateVenv -and (Test-Path $VenvPath)) {
     Write-Host "==> Removing existing virtual environment"

@@ -1,6 +1,6 @@
-# personal-AI-searcher
+# personal-ai-searcher
 
-`personal-AI-searcher` is a FastAPI-based personal research search service. It provides raw search, topic memory, timeline, and research endpoints, with SQLite as the MVP persistence layer.
+`personal-ai-searcher` is a FastAPI-based personal research search service. It provides raw search, topic memory, timeline, and research endpoints, with SQLite as the MVP persistence layer.
 
 The production entrypoint is:
 
@@ -166,7 +166,7 @@ scripts/deploy.sh
 scripts/smoke_test.sh
 ```
 
-It does not use `sudo -iu deploy`, `sudo -u deploy`, or `su - deploy`.
+The workflow connects directly as the configured deploy user and does not switch users inside the SSH script.
 
 ## systemd
 
@@ -181,7 +181,7 @@ Important defaults:
 ```text
 WorkingDirectory=/opt/personal-ai-searcher
 EnvironmentFile=/opt/personal-ai-searcher/.env
-ExecStart=/opt/personal-ai-searcher/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8020
+ExecStart=/opt/personal-ai-searcher/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8020
 User=deploy
 Group=deploy
 ```

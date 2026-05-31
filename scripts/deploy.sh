@@ -38,10 +38,10 @@ if [ ! -d "$VENV_DIR" ]; then
 fi
 
 echo "==> Upgrading pip"
-"$VENV_DIR/bin/pip" install -U pip
+"$VENV_DIR/bin/python" -m pip install -U pip
 
 echo "==> Installing dependencies"
-"$VENV_DIR/bin/pip" install -r "$PROJECT_ROOT/requirements.txt"
+"$VENV_DIR/bin/python" -m pip install -r "$PROJECT_ROOT/requirements.txt"
 
 echo "==> Initializing database"
 "$VENV_DIR/bin/python" -m app.db.init_db
