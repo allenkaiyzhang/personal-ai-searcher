@@ -1,76 +1,61 @@
-#!/usr/bin/env sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 
 SERVICE_NAME="${SERVICE_NAME:-personal-ai-searcher}"
-HOST_ADDRESS="${HOST_ADDRESS:-127.0.0.1}"
-PORT="${PORT:-8000}"
-SKIP_TESTS="${SKIP_TESTS:-0}"
-NO_RESTART="${NO_RESTART:-0}"
-RECREATE_VENV="${RECREATE_VENV:-0}"
-UPGRADE_PIP="${UPGRADE_PIP:-0}"
-RUN_GIT_PULL="${RUN_GIT_PULL:-0}"
-HEALTHCHECK_URL="${HEALTHCHECK_URL:-http://127.0.0.1:${PORT}/health}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+VENV_DIR="$PROJECT_ROOT/.venv"
+LOG_FILE="$PROJECT_ROOT/deploy.log"
+SERVICE_FILE="$PROJECT_ROOT/systemd/${SERVICE_NAME}.service"
 
-SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-VENV_PATH="$PROJECT_ROOT/.venv"
-PYTHON_PATH="$VENV_PATH/bin/python"
+mkdir -p "$PROJECT_ROOT/data" "$PROJECT_ROOT/logs"
+touch "$LOG_FILE"
+exec > >(tee -a "$LOG_FILE") 2>&1
 
 cd "$PROJECT_ROOT"
 
-echo "==> Deploying personal-AI-searcher from $PROJECT_ROOT"
-echo "==> Service name: $SERVICE_NAME"
-echo "==> Service host: $HOST_ADDRESS"
-echo "==> Service port: $PORT"
+echo "==> Deploying $SERVICE_NAME from $PROJECT_ROOT"
 
-if [ "$RUN_GIT_PULL" = "1" ]; then
-  echo "==> Pulling latest code with fast-forward only"
-  git pull --ff-only
+if [ ! -f "$PROJECT_ROOT/.env" ]; then
+  echo "ERROR: $PROJECT_ROOT/.env is required. Create it from .env.example before deploying." >&2
+  exit 1
 fi
 
-echo "==> Ensuring data directory exists"
-mkdir -p "$PROJECT_ROOT/data"
-
-if [ "$RECREATE_VENV" = "1" ] && [ -d "$VENV_PATH" ]; then
-  echo "==> Removing existing virtual environment"
-  rm -rf "$VENV_PATH"
+if [ ! -f "$PROJECT_ROOT/requirements.txt" ]; then
+  echo "ERROR: requirements.txt is required." >&2
+  exit 1
 fi
 
-if [ ! -x "$PYTHON_PATH" ]; then
+if [ ! -f "$SERVICE_FILE" ]; then
+  echo "ERROR: systemd service file not found: $SERVICE_FILE" >&2
+  exit 1
+fi
+
+if [ ! -d "$VENV_DIR" ]; then
   echo "==> Creating virtual environment"
-  python3 -m venv "$VENV_PATH"
+  python3 -m venv "$VENV_DIR"
 fi
 
-if [ "$UPGRADE_PIP" = "1" ]; then
-  echo "==> Upgrading pip"
-  "$PYTHON_PATH" -m pip install --upgrade pip
-fi
+echo "==> Upgrading pip"
+"$VENV_DIR/bin/pip" install -U pip
 
 echo "==> Installing dependencies"
-"$PYTHON_PATH" -m pip install -r requirements.txt
-
-if [ "$SKIP_TESTS" != "1" ]; then
-  echo "==> Running tests"
-  "$PYTHON_PATH" -m pytest
-else
-  echo "==> Skipping tests because SKIP_TESTS=1"
-fi
+"$VENV_DIR/bin/pip" install -r "$PROJECT_ROOT/requirements.txt"
 
 echo "==> Initializing database"
-"$PYTHON_PATH" -m app.db.init_db
+"$VENV_DIR/bin/python" -m app.db.init_db
 
-if [ "$NO_RESTART" = "1" ]; then
-  echo "==> Deployment finished. Service was not restarted because NO_RESTART=1."
-  exit 0
-fi
-
-echo "==> Restarting systemd service: $SERVICE_NAME"
+echo "==> Installing systemd unit"
+sudo cp "$SERVICE_FILE" "/etc/systemd/system/${SERVICE_NAME}.service"
+sudo systemctl daemon-reload
+sudo systemctl enable "$SERVICE_NAME"
 sudo systemctl restart "$SERVICE_NAME"
 
 echo "==> Waiting for service startup"
 sleep 2
 
-echo "==> Running health check: $HEALTHCHECK_URL"
-curl -fsS "$HEALTHCHECK_URL" >/dev/null
+sudo systemctl --no-pager --full status "$SERVICE_NAME" || true
 
-echo "==> Deployment completed successfully"
+"$SCRIPT_DIR/smoke_test.sh"
+
+echo "==> Deployment finished"

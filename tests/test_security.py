@@ -38,6 +38,7 @@ def test_health_does_not_require_api_key(monkeypatch) -> None:
     response = client.get("/health")
 
     assert response.status_code == 200
+    assert response.json() == {"status": "ok", "service": "personal-ai-searcher"}
 
 
 def test_search_rejects_missing_api_key(monkeypatch) -> None:

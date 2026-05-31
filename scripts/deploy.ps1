@@ -1,6 +1,6 @@
 param(
-    [string]$HostAddress = "0.0.0.0",
-    [int]$Port = 8000,
+    [string]$HostAddress = "127.0.0.1",
+    [int]$Port = 8020,
     [switch]$SkipTests,
     [switch]$RecreateVenv,
     [switch]$UpgradePip,

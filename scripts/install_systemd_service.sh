@@ -1,49 +1,25 @@
-#!/usr/bin/env sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 
 SERVICE_NAME="${SERVICE_NAME:-personal-ai-searcher}"
 SERVICE_FILE="${SERVICE_FILE:-/etc/systemd/system/${SERVICE_NAME}.service}"
-HOST_ADDRESS="${HOST_ADDRESS:-127.0.0.1}"
-PORT="${PORT:-8000}"
 
-SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-VENV_PYTHON="$PROJECT_ROOT/.venv/bin/python"
-TMP_SERVICE="$(mktemp)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SOURCE_SERVICE="$PROJECT_ROOT/systemd/${SERVICE_NAME}.service"
 
-cleanup() {
-  rm -f "$TMP_SERVICE"
-}
-trap cleanup EXIT
-
-echo "==> Installing systemd service for personal-AI-searcher"
+echo "==> Installing systemd service for personal-ai-searcher"
 echo "==> Project root: $PROJECT_ROOT"
 echo "==> Service name: $SERVICE_NAME"
 echo "==> Service file: $SERVICE_FILE"
-echo "==> Service host: $HOST_ADDRESS"
-echo "==> Service port: $PORT"
 
-cat > "$TMP_SERVICE" <<EOF
-[Unit]
-Description=Personal AI Searcher
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=$PROJECT_ROOT
-ExecStart=$VENV_PYTHON -m uvicorn app.main:app --host $HOST_ADDRESS --port $PORT
-Restart=always
-RestartSec=5
-EnvironmentFile=-$PROJECT_ROOT/.env
-Environment=DATABASE_URL=sqlite:///./data/searcher.db
-Environment=PYTHONUNBUFFERED=1
-
-[Install]
-WantedBy=multi-user.target
-EOF
+if [ ! -f "$SOURCE_SERVICE" ]; then
+  echo "ERROR: systemd service file not found: $SOURCE_SERVICE" >&2
+  exit 1
+fi
 
 echo "==> Copying service file"
-sudo cp "$TMP_SERVICE" "$SERVICE_FILE"
+sudo cp "$SOURCE_SERVICE" "$SERVICE_FILE"
 
 echo "==> Reloading systemd"
 sudo systemctl daemon-reload

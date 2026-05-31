@@ -38,7 +38,7 @@ app = FastAPI(title="personal-AI-searcher", version="0.1.0", lifespan=lifespan)
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {"status": "ok", "service": "personal-ai-searcher"}
 
 
 @app.post("/topics", response_model=TopicRead, dependencies=[Depends(require_api_key)])

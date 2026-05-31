@@ -1,287 +1,281 @@
 # personal-AI-searcher
 
-`personal-AI-searcher` is an MVP research-memory search service. It is not a generic `Query -> Result` search API. Its goal is to validate a loop:
+`personal-AI-searcher` is a FastAPI-based personal research search service. It provides raw search, topic memory, timeline, and research endpoints, with SQLite as the MVP persistence layer.
 
-`Topic -> Evidence -> Timeline -> Insight -> Updated Research Answer`
-
-The service searches the web, stores evidence, maintains topic timelines, keeps historical judgments, and reuses prior research context in later searches.
-
-## Workflow
-
-1. Match a query to a long-running `Topic`.
-2. Load previous `Insight`, `Evidence`, and `TimelineEvent` records when memory is enabled.
-3. Plan one to three search queries.
-4. Search Bing HTML results.
-5. Fetch and extract page content.
-6. Convert results into rule-based `Evidence`.
-7. Create timeline updates for new evidence.
-8. Update insight when enough new evidence arrives.
-9. Generate a Markdown research report.
-
-The MVP intentionally does not use an LLM. Reports are rule-based summaries and should not be considered factual conclusions.
-
-## Search vs Research
-
-`POST /search` is the raw search endpoint. It calls the Bing HTML search provider and returns structured search results. It does not fetch page bodies, extract evidence, update timelines, create insights, or write to the database. Use `/search` for temporary searches and for testing raw search behavior.
-
-`POST /research` is the research-memory pipeline. It matches a topic, reuses prior memory, searches, fetches pages, extracts evidence, updates timeline events, may update insights, and records the research run. Use `/research` when results should become durable evidence and timeline history.
-
-## DeepSeek Query Rewrite
-
-Query rewrite is optional and disabled by default. When enabled, DeepSeek is used only to rewrite a poor user query into one to three search-engine-friendly queries. It does not answer the question, does not generate factual conclusions, and its `reason` field should be treated only as debug metadata. Final search results still come from real Bing search results.
-
-Environment variables:
+The production entrypoint is:
 
 ```bash
-DEEPSEEK_API_KEY=
+app.main:app
+```
+
+The service is designed to run on a VPS with `venv + systemd`. The default VPS path is `/opt/personal-ai-searcher`, the runtime user is `deploy`, and the API listens on `127.0.0.1:8020`.
+
+## Features
+
+- `GET /health`: local health check that does not call external APIs.
+- `POST /search`: raw search endpoint.
+- `POST /research`: research-memory pipeline.
+- `POST /topics`, `GET /topics`, `GET /timeline/{topic_id}`: topic and timeline APIs.
+- Optional API key protection with `API_KEY`.
+- Optional query rewrite with DeepSeek.
+
+## Directory Structure
+
+```text
+app/                         FastAPI app and business logic
+tests/                       pytest test suite
+scripts/deploy.sh            VPS deployment script
+scripts/smoke_test.sh        VPS health smoke test
+scripts/tail_logs.sh         systemd journal helper
+systemd/personal-ai-searcher.service
+.github/workflows/ci.yml     GitHub Actions CI
+.github/workflows/deploy.yml GitHub Actions manual VPS deployment
+.env.example                 environment template
+requirements.txt             Python dependencies
+```
+
+## Configuration
+
+Create a local or server `.env` from the template:
+
+```bash
+cp .env.example .env
+```
+
+Minimum server example:
+
+```bash
+HOST=127.0.0.1
+PORT=8020
+LOG_LEVEL=INFO
+API_TOKEN=replace-with-strong-token
+API_KEY=replace-with-strong-token
+DATABASE_URL=sqlite:///./data/searcher.db
+BING_SEARCH_URL=https://www.bing.com/search
+GOOGLE_CSE_API_KEY=replace-me-if-needed
+GOOGLE_CSE_ID=replace-me-if-needed
+DEEPSEEK_API_KEY=replace-me-if-needed
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-v4-flash
 ENABLE_QUERY_REWRITE=0
 ```
 
-Project root `.env` example:
+Do not commit real secrets.
 
-```bash
-DATABASE_URL=sqlite:///./data/searcher.db
-BING_SEARCH_URL=https://www.bing.com/search
-DEEPSEEK_API_KEY=your-api-key
-DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_MODEL=deepseek-v4-flash
-ENABLE_QUERY_REWRITE=1
-```
-
-For `systemd` deployments, the service reads the project root `.env` file automatically, for example `/opt/personal-AI-searcher/.env`. After changing `.env`, reload systemd and restart the service:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl restart personal-ai-searcher
-```
-
-Example `/search` request with query rewrite:
-
-```bash
-curl -sS -X POST http://127.0.0.1:8000/search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query":"How to speak VAT in CHinese",
-    "max_results":5,
-    "market":"en-US",
-    "rewrite_query":true
-  }' | python3 -m json.tool
-```
-
-## Install
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-## Initialize Database
-
-```bash
-python -m app.db.init_db
-```
-
-The default database URL is `sqlite:///./data/searcher.db`.
-
-## Start Service
-
-```bash
-uvicorn app.main:app --reload
-```
-
-## One-Command Deployment
-
-Windows PowerShell:
-
-```powershell
-.\scripts\deploy.ps1
-```
-
-Useful options:
-
-```powershell
-.\scripts\deploy.ps1 -Port 8080
-.\scripts\deploy.ps1 -SkipTests
-.\scripts\deploy.ps1 -NoStart
-.\scripts\deploy.ps1 -RecreateVenv
-.\scripts\deploy.ps1 -UpgradePip
-```
+## Local Development
 
 Linux/macOS:
 
 ```bash
-sh scripts/deploy.sh
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m app.db.init_db
+uvicorn app.main:app --host 127.0.0.1 --port 8020 --reload
 ```
 
-Useful environment variables:
+Windows PowerShell:
 
-```bash
-PORT=8080 sh scripts/deploy.sh
-SKIP_TESTS=1 sh scripts/deploy.sh
-NO_RESTART=1 sh scripts/deploy.sh
-RECREATE_VENV=1 sh scripts/deploy.sh
-UPGRADE_PIP=1 sh scripts/deploy.sh
-RUN_GIT_PULL=1 sh scripts/deploy.sh
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python -m app.db.init_db
+uvicorn app.main:app --host 127.0.0.1 --port 8020 --reload
 ```
 
-On Linux servers, `scripts/deploy.sh` assumes the long-running app process is managed by `systemd`. It prepares the virtual environment, installs dependencies, optionally runs tests, initializes SQLite, restarts the configured service, runs a health check, and exits.
-
-## ECS systemd deployment
-
-Clone the project on the ECS instance:
+Health check:
 
 ```bash
-cd /opt
-git clone <repo-url> personal-AI-searcher
-cd /opt/personal-AI-searcher
+curl http://127.0.0.1:8020/health
 ```
 
-Install the `systemd` service:
+Expected response:
 
-```bash
-chmod +x scripts/install_systemd_service.sh scripts/deploy.sh
-./scripts/install_systemd_service.sh
+```json
+{"status":"ok","service":"personal-ai-searcher"}
 ```
 
-Run deployment:
+## Tests
+
+Run the test suite:
 
 ```bash
-./scripts/deploy.sh
+pytest -q
 ```
 
-Skip tests if needed:
+Run the same basic compile check used by CI:
 
 ```bash
-SKIP_TESTS=1 ./scripts/deploy.sh
+python -m compileall .
 ```
 
-Pull the latest code and deploy:
+CI does not require real external search or LLM calls.
+
+## VPS Deployment
+
+Expected server layout:
 
 ```bash
-RUN_GIT_PULL=1 ./scripts/deploy.sh
+/opt/personal-ai-searcher
 ```
 
-Check service status:
+The repository should already be cloned there and owned or writable by the `deploy` user used by GitHub Actions SSH.
+
+Create the server `.env`:
 
 ```bash
-systemctl status personal-ai-searcher
+cd /opt/personal-ai-searcher
+cp .env.example .env
+nano .env
 ```
 
-View service logs:
+Run manual deployment on the VPS:
 
 ```bash
-journalctl -u personal-ai-searcher -f
+chmod +x scripts/deploy.sh scripts/smoke_test.sh scripts/tail_logs.sh
+scripts/deploy.sh
+scripts/smoke_test.sh
 ```
 
-Run a health check:
+`scripts/deploy.sh` installs dependencies into `.venv`, initializes local resources, installs the systemd unit, restarts `personal-ai-searcher`, prints service status, and exits. It does not run `uvicorn` in the foreground.
 
-```bash
-curl http://127.0.0.1:8000/health
+## GitHub Actions
+
+CI runs on:
+
+- push to `main`
+- pull requests to `main`
+- manual `workflow_dispatch`
+
+Manual deployment is available from the `Deploy to VPS` workflow.
+
+Required GitHub Secrets:
+
+```text
+VPS_HOST
+VPS_USER
+VPS_SSH_KEY
+VPS_PORT
 ```
 
-Verify query rewrite after configuring `.env` and restarting the service:
+The deploy workflow logs in as `VPS_USER`, changes to `/opt/personal-ai-searcher`, runs `git pull --ff-only`, then runs:
 
 ```bash
-curl -sS -X POST http://127.0.0.1:8000/search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query":"How to speak VAT in CHinese",
-    "max_results":5,
-    "market":"en-US",
-    "rewrite_query":true
-  }' | python3 -m json.tool
+scripts/deploy.sh
+scripts/smoke_test.sh
 ```
 
-Notes:
+It does not use `sudo -iu deploy`, `sudo -u deploy`, or `su - deploy`.
 
-- `deploy.sh` no longer stays attached to the foreground `uvicorn` process.
-- `uvicorn` is managed by `systemd`.
-- The default SQLite database is `data/searcher.db`.
-- The default service listens only on `127.0.0.1`.
-- For public access, put a reverse proxy such as Nginx in front of the service later. Directly exposing `0.0.0.0` is not recommended.
+## systemd
 
-## Public access with security group whitelist and API key
-
-If the caller ECS and service ECS are not in the same VPC, access may need to go through the public network. Use two layers of protection:
-
-1. Configure `uvicorn` to listen on `0.0.0.0:8000` through the systemd service settings only when public access is required.
-2. In the Alibaba Cloud security group, allow only the caller ECS public IP, for example `<CALLER_PUBLIC_IP>/32`, to access TCP port `8000`.
-3. Enable application-level API key protection with `API_KEY`.
-
-Generate a random API key:
+Service file:
 
 ```bash
-openssl rand -hex 32
+systemd/personal-ai-searcher.service
 ```
 
-Project root `.env` example:
+Important defaults:
 
-```bash
-API_KEY=your-random-secret
-DEEPSEEK_API_KEY=
-DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_MODEL=deepseek-v4-flash
-ENABLE_QUERY_REWRITE=0
+```text
+WorkingDirectory=/opt/personal-ai-searcher
+EnvironmentFile=/opt/personal-ai-searcher/.env
+ExecStart=/opt/personal-ai-searcher/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8020
+User=deploy
+Group=deploy
 ```
 
-After changing `.env`, restart the systemd service:
+Manage the service:
 
 ```bash
+sudo systemctl status personal-ai-searcher
 sudo systemctl restart personal-ai-searcher
+sudo systemctl stop personal-ai-searcher
 ```
 
-Public `/search` request example:
+## Logs
+
+Use the helper:
 
 ```bash
-curl -sS -X POST http://<SERVICE_PUBLIC_IP>:8000/search \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: <API_KEY>" \
-  -d '{
-    "query": "VAT Chinese translation",
-    "max_results": 3,
-    "market": "en-US"
-  }'
+scripts/tail_logs.sh
 ```
 
-Notes:
+Or call `journalctl` directly:
 
-- `GET /health` does not require `API_KEY`, but it is still restricted by the security group.
-- `POST /search`, `POST /research`, `GET /topics`, `POST /topics`, and `GET /timeline/{topic_id}` require `X-API-Key` when `API_KEY` is set.
-- Empty `API_KEY` disables application-level API key protection for local development.
-- Do not hard-code `API_KEY` in the systemd service file. The service reads `.env` through `EnvironmentFile`.
+```bash
+sudo journalctl -u personal-ai-searcher -n 100 --no-pager
+sudo journalctl -u personal-ai-searcher -f
+```
+
+Deployment script logs are appended to:
+
+```bash
+deploy.log
+```
+
+## Smoke Test
+
+Run:
+
+```bash
+scripts/smoke_test.sh
+```
+
+By default it checks:
+
+```bash
+http://127.0.0.1:8020/health
+```
+
+Override when needed:
+
+```bash
+HEALTH_URL=http://127.0.0.1:8020/health scripts/smoke_test.sh
+```
+
+## Troubleshooting
+
+`.env missing`: create `/opt/personal-ai-searcher/.env` from `.env.example`.
+
+`sudo password required`: allow the `deploy` user to run the needed `systemctl`, `cp` to `/etc/systemd/system`, and `journalctl` commands, or run deployment from an account with appropriate sudo permissions.
+
+`git pull permission denied`: verify `/opt/personal-ai-searcher` ownership, deploy key access, and that GitHub Actions logs in as the same `deploy` user.
+
+`service failed`: run `sudo systemctl --no-pager --full status personal-ai-searcher` and `sudo journalctl -u personal-ai-searcher -n 100 --no-pager`.
+
+`health check failed`: confirm the service is listening on `127.0.0.1:8020`, the systemd unit uses `app.main:app`, and `.env` does not contain invalid values.
 
 ## API Examples
 
+Health:
+
 ```bash
-curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8020/health
 ```
 
 Raw search:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/search \
+curl -X POST http://127.0.0.1:8020/search \
   -H "Content-Type: application/json" \
-  -d "{\"query\":\"OpenAI API web search\",\"max_results\":5,\"market\":\"en-US\",\"rewrite_query\":false}"
+  -H "X-API-Key: <API_KEY>" \
+  -d '{"query":"OpenAI API web search","max_results":5,"market":"en-US","rewrite_query":false}'
 ```
 
-```bash
-curl -X POST http://127.0.0.1:8000/topics \
-  -H "Content-Type: application/json" \
-  -d "{\"name\":\"DRAM Market\",\"aliases\":[\"DRAM\",\"HBM\",\"Micron\"],\"description\":\"Memory market research\"}"
-```
+Research:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/research \
+curl -X POST http://127.0.0.1:8020/research \
   -H "Content-Type: application/json" \
-  -d "{\"query\":\"Is DRAM still in an upcycle?\",\"topic_hint\":\"DRAM\",\"max_results\":5,\"use_memory\":true,\"update_memory\":true}"
+  -H "X-API-Key: <API_KEY>" \
+  -d '{"query":"Is DRAM still in an upcycle?","topic_hint":"DRAM","max_results":5,"use_memory":true,"update_memory":true}'
 ```
 
 ## Roadmap
 
-- V2: PostgreSQL
-- V3: LLM Evidence Extraction
-- V4: Vector Search
-- V5: Personalized Ranking
+- PostgreSQL for multi-user production workloads.
+- Stronger provider abstraction for search backends.
+- LLM-based evidence extraction.
+- Vector retrieval for long-term research memory.
