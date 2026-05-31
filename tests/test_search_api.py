@@ -74,6 +74,45 @@ def test_search_returns_structured_results(monkeypatch) -> None:
     }
 
 
+def test_external_search_wraps_structured_results(monkeypatch) -> None:
+    async def fake_search(
+        self: BingHtmlSearchProvider,
+        query: str,
+        max_results: int,
+        market: str | None = None,
+    ) -> list[SearchResult]:
+        return [
+            SearchResult(
+                title="External result",
+                url="https://example.com/external",
+                snippet="External API result.",
+            )
+        ]
+
+    monkeypatch.setattr(BingHtmlSearchProvider, "search", fake_search)
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/search",
+        json={"query": "external search", "max_results": 3, "market": "en-US"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["service"] == "personal-ai-searcher"
+    assert body["data"]["query"] == "external search"
+    assert body["data"]["results"] == [
+        {
+            "title": "External result",
+            "url": "https://example.com/external",
+            "snippet": "External API result.",
+            "rank": 1,
+            "source": "bing",
+        }
+    ]
+
+
 def test_search_returns_empty_results(monkeypatch) -> None:
     async def fake_search(
         self: BingHtmlSearchProvider,

@@ -115,3 +115,9 @@ class SearchResponse(BaseModel):
     query: str
     results: list[SearchResultRead]
     rewritten_queries: list[RewrittenQuery] = Field(default_factory=list)
+
+
+class ExternalSearchResponse(BaseModel):
+    status: str = "ok"
+    service: str = "personal-ai-searcher"
+    data: SearchResponse

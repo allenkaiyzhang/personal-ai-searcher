@@ -13,6 +13,7 @@ from app.pipeline.research_pipeline import ResearchPipeline
 from app.providers.base import SearchResult
 from app.providers.bing_html import BingHtmlSearchProvider
 from app.schemas import (
+    ExternalSearchResponse,
     ResearchRequest,
     ResearchResponse,
     RewrittenQuery,
@@ -84,6 +85,11 @@ async def search(payload: SearchRequest) -> SearchResponse:
         ],
         rewritten_queries=rewritten_queries,
     )
+
+
+@app.post("/api/v1/search", response_model=ExternalSearchResponse, dependencies=[Depends(require_api_key)])
+async def external_search(payload: SearchRequest) -> ExternalSearchResponse:
+    return ExternalSearchResponse(data=await search(payload))
 
 
 async def _run_search_queries(

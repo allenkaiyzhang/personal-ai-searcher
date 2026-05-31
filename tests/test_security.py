@@ -52,6 +52,17 @@ def test_search_rejects_missing_api_key(monkeypatch) -> None:
     assert response.json() == {"detail": "Invalid or missing API key"}
 
 
+def test_external_search_rejects_missing_api_key(monkeypatch) -> None:
+    monkeypatch.setattr(config, "API_KEY", "secret")
+    monkeypatch.setattr(BingHtmlSearchProvider, "search", _fake_search)
+    client = TestClient(app)
+
+    response = client.post("/api/v1/search", json={"query": "temporary search"})
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid or missing API key"}
+
+
 def test_search_rejects_wrong_api_key(monkeypatch) -> None:
     monkeypatch.setattr(config, "API_KEY", "secret")
     monkeypatch.setattr(BingHtmlSearchProvider, "search", _fake_search)

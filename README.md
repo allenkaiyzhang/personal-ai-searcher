@@ -270,6 +270,29 @@ HEALTH_URL=http://127.0.0.1:8020/health scripts/smoke_test.sh
 
 ## API Examples
 
+External versioned search facade:
+
+```bash
+curl -fsS -X POST http://127.0.0.1:8020/api/v1/search \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <API_KEY>" \
+  -d '{"query":"OpenAI API web search","max_results":5,"market":"en-US","rewrite_query":false}'
+```
+
+Response shape:
+
+```json
+{
+  "status": "ok",
+  "service": "personal-ai-searcher",
+  "data": {
+    "query": "OpenAI API web search",
+    "results": [],
+    "rewritten_queries": []
+  }
+}
+```
+
 Health:
 
 ```bash
